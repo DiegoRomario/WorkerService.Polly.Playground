@@ -11,7 +11,7 @@ namespace lalala.Polly.Playground
         {
 
             Console.WriteLine("Demo is running!");
-            await RetryForeverPolicy();
+            await WaitAndRetryPolicy();
         }
         static async Task CallApi()
         {
@@ -36,6 +36,15 @@ namespace lalala.Polly.Playground
         {
             var retry = Policy.Handle<Exception>().RetryForeverAsync();
             await retry.ExecuteAsync(() => CallApi());
+        }
+        static async Task WaitAndRetryPolicy()
+        {
+            var waitandretry = Policy.Handle<Exception>().WaitAndRetryAsync(3, i => TimeSpan.FromSeconds(2), (exception, timeSpan) =>
+            {
+                Console.WriteLine($"Waiting {timeSpan} before next retry.");
+            });
+            await waitandretry.ExecuteAsync(() => CallApi());
+
         }
 
     }
