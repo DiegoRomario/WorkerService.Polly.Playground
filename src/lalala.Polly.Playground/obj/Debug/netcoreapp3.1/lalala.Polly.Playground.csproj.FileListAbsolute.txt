@@ -1,0 +1,3 @@
+C:\gitRepository\lalala.Polly\src\lalala.Polly.Playground\bin\Debug\netcoreapp3.1\lalala.Polly.Playground.exe
+C:\gitRepository\lalala.Polly\src\lalala.Polly.Playground\obj\Debug\netcoreapp3.1\lalala.Polly.Playground.AssemblyInfoInputs.cache
+C:\gitRepository\lalala.Polly\src\lalala.Polly.Playground\obj\Debug\netcoreapp3.1\lalala.Polly.Playground.AssemblyInfo.cs
