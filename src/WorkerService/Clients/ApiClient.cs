@@ -24,31 +24,37 @@ namespace WorkerService.Clients
             _apiURL = _configuration.GetSection("UrlApi").Value;
         }
 
-        public async Task SendRequest()
+        public async Task<HttpResponseMessage> SendRequest()
         {
-            //try
-            //{
-            var response = await _client.GetAsync(_apiURL);
-            string result = string.Empty;
-            result = await response.Content.ReadAsStringAsync();
-            Console.ResetColor();
-            if (response.IsSuccessStatusCode)
+            try
             {
-                Console.BackgroundColor = ConsoleColor.Cyan;
-                _logger.LogInformation($"Success: [{response.StatusCode}] - {result} ");
+                HttpResponseMessage response = await _client.GetAsync(_apiURL);
+
+                string result = string.Empty;
+                result = await response.Content.ReadAsStringAsync();
+                Console.ResetColor();
+                if (response.IsSuccessStatusCode)
+                {
+                    Console.BackgroundColor = ConsoleColor.Cyan;
+                    _logger.LogInformation($"Success: [{response.StatusCode}] - {result} ");
+
+                }
+                else
+                {
+                    Console.BackgroundColor = ConsoleColor.Red;
+                    _logger.LogWarning($"Warning: [{response.StatusCode}] - {result} ");
+                }
+                response.EnsureSuccessStatusCode();
+                return response;
             }
-            else
+            catch (HttpRequestException)
             {
-                Console.BackgroundColor = ConsoleColor.Red;
-                _logger.LogWarning($"Warning: [{response.StatusCode}] - {result} ");
+
+                throw;
             }
 
-            response.EnsureSuccessStatusCode();
-            //}
-            //catch (Exception ex)
-            //{
-            //    _logger.LogError($"Error: [{ex.Message}]");
-            //}
+           
+
 
         }
 

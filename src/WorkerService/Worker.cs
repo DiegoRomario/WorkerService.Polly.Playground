@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Polly;
+using Polly.CircuitBreaker;
 using Polly.Retry;
 using WorkerService.Clients;
 
@@ -28,18 +31,30 @@ namespace WorkerService
             while (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                await RetryPolicy();
-
+                await CircuitBreakerPolicy();
                 await Task.Delay(500, stoppingToken);
             }
         }
 
         async Task RetryPolicy()
         {
-            var retry = Policy.Handle<Exception>().RetryAsync(100, onRetry: (exception, retryCount) => {
+            var retry = Policy.Handle<Exception>().RetryAsync(100, onRetry: (exception, retryCount) =>
+            {
                 _logger.LogWarning($"\nRetrying the request. [Retry number: {retryCount}]\n");
             });
             await retry.ExecuteAsync(() => _apiClient.SendRequest());
         }
+
+        async Task CircuitBreakerPolicy()
+        {
+            var breaker = Policy
+                 .Handle<HttpRequestException>()
+                 .CircuitBreakerAsync(2, TimeSpan.FromSeconds(10),
+                 (exception, timespan, context) => { Console.WriteLine("OnBreak"); },
+                 context => { Console.WriteLine("OnReset"); });
+
+            await breaker.ExecuteAsync(() => _apiClient.SendRequest());
+        }
+
     }
 }
