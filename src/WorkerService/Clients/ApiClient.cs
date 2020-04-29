@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace WorkerService.Clients
@@ -24,12 +25,11 @@ namespace WorkerService.Clients
             _apiURL = _configuration.GetSection("UrlApi").Value;
         }
 
-        public async Task<HttpResponseMessage> SendRequest()
+        public async Task<HttpResponseMessage> SendRequest(CancellationToken cancellationToken)
         {
             try
             {
-                HttpResponseMessage response = await _client.GetAsync(_apiURL);
-
+                HttpResponseMessage response = await _client.GetAsync(_apiURL, cancellationToken);
                 string result = string.Empty;
                 result = await response.Content.ReadAsStringAsync();
                 Console.ResetColor();
@@ -51,9 +51,7 @@ namespace WorkerService.Clients
             {
 
                 throw;
-            }
-
-           
+            }         
 
 
         }

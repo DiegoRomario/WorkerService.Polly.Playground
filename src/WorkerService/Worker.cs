@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Retry;
+using Polly.Timeout;
 using WorkerService.Clients;
 
 namespace WorkerService
@@ -18,11 +19,12 @@ namespace WorkerService
     {
         private readonly ILogger<Worker> _logger;
         private static ApiClient _apiClient;
-
+        private CancellationTokenSource _cts;
         public Worker(ILogger<Worker> logger, ApiClient apiClient)
         {
             _logger = logger;
             _apiClient = apiClient;
+            _cts = new CancellationTokenSource();
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -31,8 +33,9 @@ namespace WorkerService
             while (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                await CircuitBreakerPolicy();
-                await Task.Delay(500, stoppingToken);
+                //await RetryPolicy();
+                await TimeoutPolicy();
+                await Task.Delay(5000, stoppingToken);
             }
         }
 
@@ -42,18 +45,22 @@ namespace WorkerService
             {
                 _logger.LogWarning($"\nRetrying the request. [Retry number: {retryCount}]\n");
             });
-            await retry.ExecuteAsync(() => _apiClient.SendRequest());
+            await retry.ExecuteAsync(() => _apiClient.SendRequest(_cts.Token));
         }
 
-        async Task CircuitBreakerPolicy()
+        async Task TimeoutPolicy()
         {
-            var breaker = Policy
-                 .Handle<HttpRequestException>()
-                 .CircuitBreakerAsync(2, TimeSpan.FromSeconds(10),
-                 (exception, timespan, context) => { Console.WriteLine("OnBreak"); },
-                 context => { Console.WriteLine("OnReset"); });
+            AsyncTimeoutPolicy timeoutPolicy = Policy.TimeoutAsync(5, TimeoutStrategy.Pessimistic, onTimeoutAsync: (context, timespan, task) =>
+            {
+                _logger.LogError($"{context.PolicyKey} at {context.OperationKey}: execution timed out after {timespan.TotalSeconds} seconds.");
+                _cts.Cancel();
+                _cts = new CancellationTokenSource();
+                ExecuteAsync(_cts.Token).GetAwaiter();
+                return Task.CompletedTask;
+            });
+            HttpResponseMessage httpResponse = await timeoutPolicy
+                .ExecuteAsync(async ct => await _apiClient.SendRequest(_cts.Token), _cts.Token);
 
-            await breaker.ExecuteAsync(() => _apiClient.SendRequest());
         }
 
     }
